@@ -26,7 +26,7 @@ Examples:
     you have 4 cpus available):
 
         $ export OMP_NUM_THREADS=4
-        $ python init_guess_by_df.py mymol.xyz 0 1 ccpvdz
+        $ python dfit_guess.py mymol.xyz 0 1 ccpvdz
 
     Runs the code on the molecule defined in 'mymol.xyz' with total charge
     of 0 for the molecule and spin 1 using the 'ccpvdz' basis set.
@@ -36,17 +36,20 @@ Author:
     Torsten Hahn <torstenhahn@fastmail.fm>
 """
 import sys
+import os
+from os.path import expanduser, join
 import time
 import copy
+import socket
 import numpy as np
 from pyscf import gto
+from pyscf import dft
 from pyscf.dft import numint
 from pyscf import lo
 from ase import io, units, Atoms, Atom
 from ase import neighborlist as NL
 from ase.utils import natural_cutoffs
 from ase.symbols import atomic_numbers as ANR
-
 
 
 def sph2cart(rtheaphi):
@@ -341,14 +344,71 @@ def genfofix(fname, FOFIX=False):
     io.write(fn, mol_atoms.extend(frmorb_atoms), plain=True)
 
 
+def gen_initial_guess(mol, charge, spin, **kwargs):
+
+    # standard settings
+    args = {
+        'basis' : 'ccpvdz',
+        'xc'    : 'PBE,PBE',
+    }
+
+    # assign keyword args
+    valid_kwargs = ['basis', 'xc', 'method', 'newton']
+    for k,v in kwargs.items():
+        #print(">>", k, v)
+        if k not in valid_kwargs:
+            raise Exception(f"Unexpected keyword argument: {k}")
+        args[k] = v
+
+    # build mole object
+    if type(mol) == Atoms:
+        print('init ase-mol')
+        s = mol.copy()
+        csymb = s.get_chemical_symbols()
+        cpos = s.positions
+        astr = ''
+        for symb,i in zip(csymb,range(len(csymb))):
+            #print sym, pos
+            pos = cpos[i]
+            astr += "{0} {1:0.12f} {2:0.12f} {3:0.12f};".format(
+                symb,pos[0],pos[1],pos[2])
+
+        # overwrite existing mole object
+        mol = gto.M(atom=astr,
+                    basis=args['basis'],
+                    spin=spin,
+                    charge=charge
+                    )
+
+    elif type(mol) == gto.Mole:
+        pass
+    else:
+        print('Unknown mol object type')
+        sys.exit(-1)
+
+    print(type(mol))
+
+
+    return
+
 
 if __name__ == '__main__':
-    from os.path import expanduser, join
-    import os
-    from pyscf import dft
-    from ase import io
-    import socket
 
+    ase_mol = io.read('O3.xyz', )
+
+    mol = gto.Mole()
+
+    mol.atom = '''
+    O	.000000  1.103810  -.228542
+    O	.000000   .000000   .457084
+    O 	.000000 -1.103810  -.228542
+    '''
+
+    gen_initial_guess(ase_mol, 0, 0, basis='sto3g', foo='bar')
+
+
+
+    sys.exit()
 
     ifile = "JMOL.xyz"
     b = 'ccpvdz'
