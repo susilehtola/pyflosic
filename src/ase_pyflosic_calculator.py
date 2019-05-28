@@ -681,6 +681,22 @@ if __name__ == "__main__":
     H +0.43225000 +1.55121000 +0.89226000
     H +0.43225000 +1.55121000 -0.89226000
     '''
+    
+    #print(CH3SH.splitlines())
+    #sys.exit()
+    
+    CH3SH_ase = Atoms()
+    for line in CH3SH.splitlines():
+        _sline = line.split()
+        if len(_sline) < 4:
+            continue
+        print(_sline)
+        a = Atom(_sline[0], position=[float(_sline[1]), float(_sline[2]), float(_sline[3])])
+        CH3SH_ase.extend(a)
+    
+    #print(CH3SH_ase)
+    #sys.exit()
+    
     # this are the spin-up descriptors
     fod = Atoms('X13He13', positions=[
     (-0.04795000, -0.66486000, +0.00000000),
@@ -719,7 +735,7 @@ if __name__ == "__main__":
     from pyscf import gto, dft
     from flosic_scf import FLOSIC
     
-    b = 'sto6g'
+    b = '631g'
     spin = 0
     charge = 0
     
@@ -728,7 +744,7 @@ if __name__ == "__main__":
                 spin=spin,
                 charge=charge)
 
-    grid_level  = 5
+    grid_level  = 6
     mol.verbose = 4
     mol.max_memory = 2000
     mol.build()
@@ -756,14 +772,38 @@ if __name__ == "__main__":
     
     print(" >>>>>>>>>>>> OPTIMIZER TEST <<<<<<<<<<<<<<<<<<<<")
     
+    from ase import io
+    
+    def write_xyz(*args):
+        print('write_xyz called')
+        _fod = args[0].copy()
+        nuc = args[1]
+        #print(fod)
+        #nucs = args[1]
+        #_all = nucs.copy()
+        #_all.extend(fod)
+        _fod.extend(nuc)
+        io.write('OPT_FRMORB.xyz', _fod, format='xyz', append=True)
+        
+    
+    
+    f1s = get_fix1score(CH3SH_ase, fod)
+    
+    fod.set_constraint(f1s)
+    
     # test the calculator by optimizing a bit
-    from ase.optimize import  FIRE
-    dyn = FIRE(atoms=fod,
+    from ase.optimize import  FIRE, BFGS
+    dyn = BFGS(atoms=fod,
         logfile='OPT_FRMORB_FIRE_TEST.log',
         #downhill_check=True,
-        maxmove=0.05
+        #maxmove=0.025,
+        maxstep=0.025,
+        #trajectory='OPT_FRMORB.traj'
     )
-    dyn.run(fmax=0.005,steps=99)
+    dyn.attach(write_xyz, 1, fod, CH3SH_ase)
+    dyn.run(fmax=0.001,steps=199)
+    
+    
     
     
     

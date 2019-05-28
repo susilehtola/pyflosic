@@ -308,6 +308,9 @@ class FLOSIC(uhf.UHF):
         self.preopt_fix1s       = True
         self.opt_init_mxstep    = 0.0050
         self.opt_mxstep         = 0.0100
+        self.esic_cnvg          = 1.0e-5
+        self.esic_last          = [None, None]
+        self.update_vsic        = True
         
         #self.esic_per_cycle = [0.0]
         self.pflo               = None  # list of FLO objects

@@ -715,6 +715,7 @@ def flosic(mol,mf,fod1,fod2,sysname=None,datatype=np.float64, print_dm_one = Fal
     ket = np.zeros((nks,1), dtype=datatype)
     bra = np.zeros((1,nks), dtype=datatype)
     
+    _desic = [9999.0, 9999.0]
     # this is the main loop that goes over each Fermi-orbital
     for s in range(0,nspin):
         lfod = fod1
@@ -734,7 +735,9 @@ def flosic(mol,mf,fod1,fod2,sysname=None,datatype=np.float64, print_dm_one = Fal
             # the fod positions of the base class may have changed,
             # if so, update the FLO objects positions as well
             pdiff = np.linalg.norm(lfod.positions - pflo[s].fod * units.Bohr)
-            #print('>> pdiff', pdiff)
+            if pdiff > 1e-8:
+                mf.FLOSIC.update_vsic = True
+            print('>> pdiff', pdiff)
             if (pdiff > np.finfo(np.float64).eps):
                 #print('>> pflo position update')
                 pflo[s].fod[:,:] = lfod.positions[:,:] / units.Bohr
@@ -747,9 +750,23 @@ def flosic(mol,mf,fod1,fod2,sysname=None,datatype=np.float64, print_dm_one = Fal
                     onedm_last = pflo[s].onedm[j].copy()
             except IndexError:
                 pass
-            #print('>> fod for update_vsic', np.sum(pflo[0].fod * units.Bohr), flush=True)
-            #print(np.array_str(pflo[s].fod, precision=4, max_line_width=220))
-            pflo[s].update_vsic(uall=True)
+            
+            if mf.FLOSIC.update_vsic:
+                pflo[s].update_vsic(uall=True)
+            
+            if mf.FLOSIC.esic_last[s] is None:
+                mf.FLOSIC.esic_last[s] = pflo[s]._esictot
+            else:
+                _desic[s] = np.abs(\
+                    mf.FLOSIC.esic_last[s] - pflo[s]._esictot
+                )
+                print("_desic: {:9.6f}".format(_desic[s]))
+                if _desic[s] < mf.FLOSIC.esic_cnvg:
+                    mf.FLOSIC.update_vsic = False
+                else:
+                    mf.FLOSIC.update_vsic = True
+                mf.FLOSIC.esic_last[s] = pflo[s]._esictot
+            
         
         #print(">>> ESIC: {}".format(pflo[s]._esictot))
         
