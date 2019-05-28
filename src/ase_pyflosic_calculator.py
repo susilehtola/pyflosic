@@ -631,6 +631,36 @@ class BasicFLOSICC(Calculator):
 
 
 
+def get_fix1score(nucs, fod):
+    """Return an ase constrain for fix atoms
+    
+    Args:
+        nucs (ase Atoms object): the atoms of the structure
+        
+        fod (ase Atoms object): the corresponding fod's (all of them)
+    
+    Returns:
+        FixAtoms instance to be used with any ase optimizer. 
+    
+    """
+    from ase.constraints import FixAtoms
+    
+    npos = nucs.positions
+    fpos = fod.positions
+    
+    cidx = []
+    
+    
+    for i in range(fpos.shape[0]):
+        for j in range(npos.shape[0]):
+            dp = np.linalg.norm(fpos[i]-npos[j])
+            if dp < 1e-3:
+                cidx.append(i)
+                break
+
+    return FixAtoms(indices=cidx)
+
+
 if __name__ == "__main__":
     from ase.io import read
     import os
@@ -684,6 +714,7 @@ if __name__ == "__main__":
     foddn = Atoms([a for a in fod if a.symbol == 'He'])
     print(fodup)
     print(foddn)
+        
     
     from pyscf import gto, dft
     from flosic_scf import FLOSIC
