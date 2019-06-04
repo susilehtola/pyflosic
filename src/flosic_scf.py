@@ -273,7 +273,7 @@ class FLOSIC(uhf.UHF):
         
         # creation of an internal UKS object for handling FLO-SIC calculations.
         lib.logger.TIMER_LEVEL = 4
-        mol.verbose = 0
+        mol.verbose = 3
         calc_uks = UKS(mol)
         calc_uks.xc = self.xc
         calc_uks.max_cycle = 0
@@ -308,7 +308,7 @@ class FLOSIC(uhf.UHF):
         self.preopt_fix1s       = True
         self.opt_init_mxstep    = 0.0050
         self.opt_mxstep         = 0.0100
-        self.esic_cnvg          = 1.0e-5
+        self.esic_cnvg          = 0.0
         self.esic_last          = [None, None]
         self.update_vsic        = True
         

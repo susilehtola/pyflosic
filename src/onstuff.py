@@ -52,7 +52,20 @@ class ON(object):
         self.is_init = True
         self.add_ghosts = False
         self.nshell = 2
-        #print(self.grid_level)
+        #print(self.mol)
+        
+        _verb = self.mol.verbose
+        self.mol.verbose = 0
+        print('grid_level', grid_level)
+        self._mf = dft.UKS(mol)
+        self._mf.grids.level = grid_level
+        self._mf.max_cycle = 0
+        self._mf.kernel()
+        self.mol.verbose = _verb
+        
+        print(self._mf.grids.coords.shape)
+        print(self._mf.grids.weights.shape)
+        
         #sys.exit()
         
     def build(self):
@@ -320,7 +333,42 @@ class ON(object):
         #print(mstr)
         #print("{0} {1}".format(fodid,b))
         
+        #print("fodid", fodid)
+        #print(self.fod_atm[s][fodid])
+        
+        _ftype = self.fod_atm[s][fodid][2]
+        _rcut = 99.0
+        if _ftype == 'C1s':
+            _rcut = 8.0
+        
+        _patom = self.mol.atom_coord(self.fod_atm[s][fodid][0])
+        
+        #print(_patom)
+        
+        _df = np.linalg.norm(self._mf.grids.coords - _patom, axis=1)
+        
+        #print(np.where(_df < _rcut)[0].shape)
+        _ongidx = np.where(_df < _rcut)[0]
+        
+        
+        
         #sys.exit()
+        
+        #if ongrid is None:
+        #    #print("")
+        #    ongrid = copy.copy(self._mf.grids)
+        #    _coords = np.zeros((_ongidx.shape[0],3), dtype=np.float64, order='F')
+        #    _weights = np.zeros((_ongidx.shape[0]), dtype=np.float64, order='F')
+        #    _coords[:,0] = self._mf.grids.coords[_ongidx,0]
+        #    _coords[:,1] = self._mf.grids.coords[_ongidx,1]
+        #    _coords[:,2] = self._mf.grids.coords[_ongidx,2]
+        #    _weights[:] = self._mf.grids.weights[_ongidx]
+        #    ongrid.coords = _coords
+        #    ongrid.weights = _weights
+        #else:
+        #    print('     (mesh was already generated for fod {})'.format(pmshid))
+        
+        
         
         try:
             onmol =  gto.M(atom=mstr,basis=b)
@@ -498,6 +546,9 @@ class ON(object):
                 print('{:4d} {:4d} : {:7d} {:7d}    {}'.format(s,j,nonmsh,nbas, onat))
         print('    ----------------')
         _nbas = float(_nbas)/(np.sum(self.nfod))
+        ##
+        #print(np.sum(self.nfod))
+        #sys.exit()
         _tnbas = self.mol.aoslice_by_atom()[-1,-1]
         _nmshs = float(_nmshs)/(np.sum(self.nfod))
         #print(_tnbas)

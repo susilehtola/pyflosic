@@ -742,7 +742,7 @@ def flosic(mol,mf,fod1,fod2,sysname=None,datatype=np.float64, print_dm_one = Fal
                 #print('>> pflo position update')
                 pflo[s].fod[:,:] = lfod.positions[:,:] / units.Bohr
             # save the last vsic (if there is one) and mix a bit
-            # (improoves convergence!)
+            # (improves convergence!)
             vsic_last = None
             try:
                 if not np.isclose(np.sum(np.abs(pflo[s].vsic[j])), 0.0):

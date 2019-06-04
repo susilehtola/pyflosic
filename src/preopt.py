@@ -26,7 +26,8 @@ from pyscf import lo
 from ase import neighborlist as NL
 from ase.utils import natural_cutoffs
 from pyscf.lib import logger
-from pyscf import lib
+from pyscf import lib, tools
+from pyscf.dft import numint
 import multiprocessing as mp
 
 # this is for basic mpi support to
@@ -1014,7 +1015,7 @@ class FLO(object):
         # loop over the group of fod's and calculate
         # veff for each group (thah has the same mesh) in a single call
         # (huge speedup !)
-        if len(upd_ids) > 0 and self.mol.verbose > 3:
+        if len(upd_ids) > 0 and self.mol.verbose >= 3:
             print(' ---- orbital energies, spin {} ----'.format(self.s))
             print('#FLO {:>11} {:>11} {:>11} {:>11}'.format('E_xc', 'E_coul', 'E_sic', 'Nmsh'))
         ##print('nfod', self.nfod)
@@ -1027,11 +1028,19 @@ class FLO(object):
             dmsize = len(fgrp)
             dma = np.zeros((dmsize, self.nks, self.nks), dtype=np.float64)
             dmb = np.zeros((dmsize, self.nks, self.nks), dtype=np.float64)
+            dma_orig = np.zeros_like(dma)
+            dmb_orig = np.zeros_like(dmb)
             for j, fodid in enumerate(fgrp):
                 ##if fodid in skiptable[ifgrp]: continue
                 #print('j,fodid', j,fodid)
                 odm = self.onedm[fodid][:,:].copy()
+                #dma_orig[j,:,:] = 
                 if self.mf.on is not None:
+                    if self.s == 0:
+                        dma_orig[j,:,:] = odm[:,:].copy()
+                    else:
+                        dmb_orig[j,:,:] = odm[:,:].copy()
+                    
                     _odm = self.mf.on.get_on_dm(self.s, fodid, odm)
                     if self.s == 0:
                         dma[j,:,:] = _odm[:,:].copy()
@@ -1045,15 +1054,37 @@ class FLO(object):
 
                 #dm[j,:,:] = odm[:,:]
             _dm = [dma,dmb]
+            _dm_orig = [dma_orig, dmb_orig]
+            
             #print(np.array(_dm).shape)
-
+            
+            _grids_orig = copy(self.mf.grids)
+            
+            #print('fgrp', fgrp)
             # prepare grid for veff
             if self.mf.on is not None:
                 self.mf.grids.coords = self.mf.on.fod_onmsh[self.s][fgrp[0]].coords.copy()
                 self.mf.grids.weights = self.mf.on.fod_onmsh[self.s][fgrp[0]].weights.copy()
             # for debug message
             nmsh = self.mf.grids.weights.shape[0]
-
+            
+            #for j, fodid in enumerate(fgrp):
+            #    aout = Atoms()
+            #    ofn = 'out_{}.xyz'.format(fodid)
+            #    _ldm = _dm[self.s][j,:,:]
+            #    #print("ldm.shape", _ldm.shape)
+            #    _lmol = self.mf.on.fod_onmol[self.s][fodid]
+            #    # build ase atoms object
+            #    for k in range(_lmol.natm):
+            #        aout.extend(
+            #            Atom(symbol=_lmol.atom_symbol(k),
+            #                position=_lmol.atom_coord(k)*units.Bohr,
+            #            )
+            #        )
+            #    
+            #    io.write(ofn, aout, format='xyz')
+            #    #tools.cubegen.density(self.mol, ofn, _ldm)
+            
             # check if we want to use mpi
             if self.use_mpi and len(fgrp) > 1:
                 comm = MPI.COMM_WORLD
@@ -1085,7 +1116,7 @@ class FLO(object):
                 _dmmpi = slice_dm4mpi(_dm, sidx, eidx)
 
                 # call the solver
-                #print(">>> master: ", np.asarray(_dmmpi).shape, flush=True)
+                #print("> master: ", np.asarray(_dmmpi).shape, flush=True)
                 _veff = self.mf.get_veff(mol=self.mol, dm=_dmmpi)
                 #print(">>> master _veff: ", hasattr(_veff,'__dict__'), flush=True)
 
@@ -1119,7 +1150,46 @@ class FLO(object):
                 # call the veff code, put in all one electron dm's at once
                 #_dm = [np.random.random((1,self.nks,self.nks)),
                 #  np.random.random((1,self.nks,self.nks))]
-                _veff = self.mf.get_veff(mol=self.mol, dm=_dm)
+                #_veff = self.mf.get_veff(mol=self.mol, dm=_dm)
+                
+                
+                #print(">> exc1: ", _veff.__dict__['exc'])
+                #print(">> veff", _veff.__dict__.keys())
+                max_memory = self.mf.max_memory - lib.current_memory()[0]
+                #print('max_mem', max_memory)
+                #print(">> call numint.nr_vxc")
+                self.mf.grids = _grids_orig
+                #_lmol = self.mf.on.fod_onmol[self.s][fgrp[0]]
+                _lmol = self.mol
+                nelec, exc, vxc = numint.nr_vxc(_lmol,
+                    self.mf.grids,
+                    self.mf.xc,
+                    _dm,
+                    self.mf.FLOSIC.nspin-1,
+                    max_memory=max_memory)
+                
+                #print(">> nelec1:", nelec)
+                #print('>> exc2:', exc)
+                #print(vxc.shape)
+                
+                vj,vk = self.mf.get_jk(self.mol, _dm[0]+_dm[1], 1)
+                #ecoul = np.einsum('ij,ji', _dm[self.s][j], vj) * .5
+                
+                
+                #print('>> ecolvj', ecoul)
+                #print('>> vxc', vxc.shape)
+                #print('>> vj', vj.shape)
+                #print('>> vk', vk.shape)
+                
+                
+                vxc += vj
+                
+                ###############################
+                ###############################
+                _veff = lib.tag_array(vxc, exc=exc, vj=vj, vk=vk)
+                
+                #sys.exit()
+                
 
             # restore original grid size (if needed)
             if self.mf.on is not None:
@@ -1144,7 +1214,7 @@ class FLO(object):
                 self.energies[fodid,0] = _esic
                 self.energies[fodid,1] = _ecoul
                 self.energies[fodid,2] = _exc
-                if self.mol.verbose > 3:
+                if self.mol.verbose >= 3:
                     print(' {:>3d} {:>11.5f} {:>11.5f} {:>11.5f} {:>11d}'\
                         .format(fodid, _exc , _ecoul, _esic, nmsh))
 
