@@ -336,7 +336,7 @@ class ON(object):
         except RuntimeError:
             onmol =  gto.M(atom=mstr, basis=b, spin=1)
         onmol.verbose=0
-        onmol.max_memory=self.mol.max_memory/10
+        onmol.max_memory=self.mol.max_memory/2
         if onmol.max_memory < 1000:
             onmol.max_memory = 1000
         #print(onmol.atom)
