@@ -1066,8 +1066,10 @@ class FLO(object):
             #print('fgrp', fgrp)
             # prepare grid for veff
             _lgrids = self.mf.grids
+            _lmol = self.mol
             if self.mf.on is not None:
                 _lgrids = self.mf.on.fod_onmsh[self.s][fgrp[0]]
+                _lmol = self.mf.on.fod_onmol[self.s][fgrp[0]]
                 
             #    self.mf.grids.coords[:,0:3] = 0.0
             #    self.mf.grids.weights[:] = 0.0
@@ -1164,7 +1166,6 @@ class FLO(object):
                 # call the veff code, put in all one electron dm's at once
                 #_dm = [np.random.random((1,self.nks,self.nks)),
                 #  np.random.random((1,self.nks,self.nks))]
-                _lmol = self.mf.on.fod_onmol[self.s][fgrp[0]]
                 #_lgrids = dft.gen_grid.Grids(_lmol)
                 #_lgrids.level=self.mf.on.grid_level
                 #_lgrids.build()
