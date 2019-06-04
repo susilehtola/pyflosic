@@ -258,18 +258,21 @@ def mpi_worker():
             # reserve memory for density matrices
             _dmtmp = np.zeros((2,nfod, nbas, nbas), dtype=np.float64)
             comm.Bcast(_dmtmp, root=0)
-            _weights = np.zeros(nmsh, dtype='d')
-            _coords = np.zeros((nmsh,3), dtype='d')
-            comm.Bcast(_weights, root=0)
-            comm.Bcast(_coords, root=0)
+            #_weights = np.zeros(nmsh, dtype='d')
+            #_coords = np.zeros((nmsh,3), dtype='d')
+            #comm.Bcast(_weights, root=0)
+            #comm.Bcast(_coords, root=0)
+            _lgrids = None
+            _lgrids = comm.bcast(_lgrids, root=0)
+            mf.grids = _lgrids
 
-            mf.grids.coords = _coords
+            #mf.grids.coords = _coords
 
             # prepare the dm for use
             _dm = slice_dm4mpi(_dmtmp, sidx, eidx)
             # prepare the mesh
-            mf.grids.coords = _coords.copy()
-            mf.grids.weights = _weights.copy()
+            #mf.grids.coords = _coords.copy()
+            #mf.grids.weights = _weights.copy()
 
             #print(">>> slave: ", np.asarray(_dm).shape)
 
@@ -1062,7 +1065,10 @@ class FLO(object):
             
             #print('fgrp', fgrp)
             # prepare grid for veff
-            #if self.mf.on is not None:
+            _lgrids = self.mf.grids
+            if self.mf.on is not None:
+                _lgrids = self.mf.on.fod_onmsh[self.s][fgrp[0]]
+                
             #    self.mf.grids.coords[:,0:3] = 0.0
             #    self.mf.grids.weights[:] = 0.0
             #    nmsh = self.mf.on.fod_onmsh[self.s][fgrp[0]].weights.shape[0]
@@ -1109,13 +1115,14 @@ class FLO(object):
                 idata[1] = nmsh
                 comm.Bcast(idata, root=0)
                 _dmtmp = np.array(_dm, dtype=np.float64)
-                comm.Bcast(_dmtmp, root=0)
-                _weights = np.zeros_like(self.mf.grids.weights, dtype='d')
-                _weights[:] = self.mf.grids.weights[:]
-                comm.Bcast(self.mf.grids.weights, root=0)
-                _coords = np.zeros_like(self.mf.grids.coords, dtype='d')
-                _coords[:,:] = self.mf.grids.coords[:,:]
-                comm.Bcast(self.mf.grids.coords, root=0)
+                #comm.Bcast(_dmtmp, root=0)
+                #_weights = np.zeros_like(self.mf.grids.weights, dtype='d')
+                #_weights[:] = self.mf.grids.weights[:]
+                #comm.Bcast(self.mf.grids.weights, root=0)
+                #_coords = np.zeros_like(self.mf.grids.coords, dtype='d')
+                #_coords[:,:] = self.mf.grids.coords[:,:]
+                #comm.Bcast(self.mf.grids.coords, root=0)
+                comm.bcast(_lgrids, root=0)
 
                 sidx, eidx, csize = get_mpichunks(len(fgrp),0,comm=comm)
                 #print("sidx, eidx, csize", sidx, eidx, csize)
@@ -1161,7 +1168,6 @@ class FLO(object):
                 #_lgrids = dft.gen_grid.Grids(_lmol)
                 #_lgrids.level=self.mf.on.grid_level
                 #_lgrids.build()
-                _lgrids = self.mf.on.fod_onmsh[self.s][fgrp[0]]
                 nmsh=_lgrids.weights.shape[0]
                 self.mf.grids = _lgrids
                 _veff = self.mf.get_veff(mol=self.mol, dm=_dm)
