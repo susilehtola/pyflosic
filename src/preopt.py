@@ -237,7 +237,7 @@ def mpi_worker():
             mf.max_cycle   = 0
             mf.kernel()
             nbas = mf.mo_coeff[0].shape[0]
-            #print(">>> init done", flush=True)
+            #print(">>> init done, nbas", nbas, flush=True)
             comm.Barrier()
             avail = None
             continue
@@ -254,6 +254,7 @@ def mpi_worker():
 
             sidx, eidx, csize = get_mpichunks(idata[0],0,comm=comm)
             #print(">>> mpi_worker: sidx, eidx, csize", sidx, eidx, csize, flush=True)
+            #print(">>> mpi_worker: nfod, nbas", nfod, nbas, flush=True)
 
             # reserve memory for density matrices
             _dmtmp = np.zeros((2,nfod, nbas, nbas), dtype=np.float64)
@@ -262,8 +263,31 @@ def mpi_worker():
             #_coords = np.zeros((nmsh,3), dtype='d')
             #comm.Bcast(_weights, root=0)
             #comm.Bcast(_coords, root=0)
-            _lgrids = None
-            _lgrids = comm.bcast(_lgrids, root=0)
+            #info = {
+            #    'atom'      : _lmol.atom,
+            #    'basis'     : _lmol.basis,
+            #    'charge'    : _lmol.charge,
+            #    'spin'      : _lmol.spin,
+            #    'max_memory': _lmol.max_memory,
+            #    'xc'        : self.mf.xc,
+            #    'grid_level': _lgrids.level
+            #}
+            
+            _info = None
+            _info = comm.bcast(_info, root=0)
+            
+            _lmol = gto.M(atom=_info['atom'],
+                basis=_info['basis'],
+                spin=_info['spin'],
+                charge=_info['charge'],
+                verbose=0,
+                max_memory=_info['max_memory']
+            )
+            
+            _lgrids = dft.gen_grid.Grids(_lmol)
+            _lgrids.level = _info['grid_level']
+            _lgrids.build()
+            
             mf.grids = _lgrids
 
             #mf.grids.coords = _coords
@@ -1117,14 +1141,26 @@ class FLO(object):
                 idata[1] = nmsh
                 comm.Bcast(idata, root=0)
                 _dmtmp = np.array(_dm, dtype=np.float64)
-                #comm.Bcast(_dmtmp, root=0)
+                comm.Bcast(_dmtmp, root=0)
                 #_weights = np.zeros_like(self.mf.grids.weights, dtype='d')
                 #_weights[:] = self.mf.grids.weights[:]
                 #comm.Bcast(self.mf.grids.weights, root=0)
                 #_coords = np.zeros_like(self.mf.grids.coords, dtype='d')
                 #_coords[:,:] = self.mf.grids.coords[:,:]
                 #comm.Bcast(self.mf.grids.coords, root=0)
-                comm.bcast(_lgrids, root=0)
+                
+                
+                info = {
+                    'atom'      : _lmol.atom,
+                    'basis'     : _lmol.basis,
+                    'charge'    : _lmol.charge,
+                    'spin'      : _lmol.spin,
+                    'max_memory': _lmol.max_memory,
+                    'xc'        : self.mf.xc,
+                    'grid_level': _lgrids.level
+                }
+                
+                comm.bcast(info, root=0)
 
                 sidx, eidx, csize = get_mpichunks(len(fgrp),0,comm=comm)
                 #print("sidx, eidx, csize", sidx, eidx, csize)

@@ -372,6 +372,10 @@ class FLOSIC(uhf.UHF):
         if self.use_mpi:
             comm = MPI.COMM_WORLD
             wsize = comm.Get_size()
+            
+            nbas = self.calc_uks.mo_coeff[0].shape[0]
+            print(">>> root, nbas", nbas)
+            
             for inode in range(1,wsize):
                 comm.send('init', dest=inode, tag=11)
             
