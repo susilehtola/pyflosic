@@ -350,7 +350,7 @@ class FLOSIC(uhf.UHF):
             'fforces','fod2','ldax','calc_forces','is_first','debug','nuclei','AF','l_ij','ods','lambda_ij',
             'num_iter','vsic_every','fixed_vsic','ham_sic','preopt_fix1s','cesicc','nspin','opt_mxstep','preopt',
             'opt_init_mxstep','pflo','preopt_start_cycle','preopt_conv_tol','on','preopt_fmin',
-            'nfod','use_mpi'])
+            'nfod','use_mpi', 'update_vsic', 'esic_last', 'esic_cnvg'])
 
         # make sure initial mo_coeff's are in synch with the 
         # helper - subclass

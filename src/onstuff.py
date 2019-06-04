@@ -330,45 +330,6 @@ class ON(object):
         
         b = self.mol.basis
         
-        #print(mstr)
-        #print("{0} {1}".format(fodid,b))
-        
-        #print("fodid", fodid)
-        #print(self.fod_atm[s][fodid])
-        
-        _ftype = self.fod_atm[s][fodid][2]
-        _rcut = 99.0
-        if _ftype == 'C1s':
-            _rcut = 8.0
-        
-        _patom = self.mol.atom_coord(self.fod_atm[s][fodid][0])
-        
-        #print(_patom)
-        
-        _df = np.linalg.norm(self._mf.grids.coords - _patom, axis=1)
-        
-        #print(np.where(_df < _rcut)[0].shape)
-        _ongidx = np.where(_df < _rcut)[0]
-        
-        
-        
-        #sys.exit()
-        
-        #if ongrid is None:
-        #    #print("")
-        #    ongrid = copy.copy(self._mf.grids)
-        #    _coords = np.zeros((_ongidx.shape[0],3), dtype=np.float64, order='F')
-        #    _weights = np.zeros((_ongidx.shape[0]), dtype=np.float64, order='F')
-        #    _coords[:,0] = self._mf.grids.coords[_ongidx,0]
-        #    _coords[:,1] = self._mf.grids.coords[_ongidx,1]
-        #    _coords[:,2] = self._mf.grids.coords[_ongidx,2]
-        #    _weights[:] = self._mf.grids.weights[_ongidx]
-        #    ongrid.coords = _coords
-        #    ongrid.weights = _weights
-        #else:
-        #    print('     (mesh was already generated for fod {})'.format(pmshid))
-        
-        
         
         try:
             onmol =  gto.M(atom=mstr,basis=b)
@@ -379,11 +340,10 @@ class ON(object):
         #print(onmol.atom)
         # build the meshes
         if ongrid is None:
-            _mdft = dft.UKS(onmol)
-            _mdft.max_cycle = 0
-            _mdft.grids.level = level
-            _mdft.kernel()
-            ongrid = copy.copy(_mdft.grids)
+            ongrid = dft.gen_grid.Grids(onmol)
+            ongrid.level=self.grid_level
+            ongrid.build()
+            #print(">> Grid: ", ongrid.size)
         else:
             print('     (mesh was already generated for fod {})'.format(pmshid))
         #ongrid = dft.gen_grid.Grids(onmol)

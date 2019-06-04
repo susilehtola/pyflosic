@@ -1062,11 +1062,18 @@ class FLO(object):
             
             #print('fgrp', fgrp)
             # prepare grid for veff
-            if self.mf.on is not None:
-                self.mf.grids.coords = self.mf.on.fod_onmsh[self.s][fgrp[0]].coords.copy()
-                self.mf.grids.weights = self.mf.on.fod_onmsh[self.s][fgrp[0]].weights.copy()
-            # for debug message
-            nmsh = self.mf.grids.weights.shape[0]
+            #if self.mf.on is not None:
+            #    self.mf.grids.coords[:,0:3] = 0.0
+            #    self.mf.grids.weights[:] = 0.0
+            #    nmsh = self.mf.on.fod_onmsh[self.s][fgrp[0]].weights.shape[0]
+            #    
+            #    self.mf.grids.coords[:nmsh,0:3] = \
+            #        self.mf.on.fod_onmsh[self.s][fgrp[0]].coords[:nmsh,0:3]
+            #    self.mf.grids.weights[:nmsh] = \
+            #        self.mf.on.fod_onmsh[self.s][fgrp[0]].weights[:nmsh]
+            #    #self.mf.grids = self.mf.on.fod_onmsh[self.s][fgrp[0]]
+            ## for debug message
+            #nmsh = self.mf.grids.weights.shape[0]
             
             #for j, fodid in enumerate(fgrp):
             #    aout = Atoms()
@@ -1150,49 +1157,62 @@ class FLO(object):
                 # call the veff code, put in all one electron dm's at once
                 #_dm = [np.random.random((1,self.nks,self.nks)),
                 #  np.random.random((1,self.nks,self.nks))]
-                #_veff = self.mf.get_veff(mol=self.mol, dm=_dm)
-                
-                
-                #print(">> exc1: ", _veff.__dict__['exc'])
-                #print(">> veff", _veff.__dict__.keys())
-                max_memory = self.mf.max_memory - lib.current_memory()[0]
-                #print('max_mem', max_memory)
-                #print(">> call numint.nr_vxc")
+                _lmol = self.mf.on.fod_onmol[self.s][fgrp[0]]
+                #_lgrids = dft.gen_grid.Grids(_lmol)
+                #_lgrids.level=self.mf.on.grid_level
+                #_lgrids.build()
+                _lgrids = self.mf.on.fod_onmsh[self.s][fgrp[0]]
+                nmsh=_lgrids.weights.shape[0]
+                self.mf.grids = _lgrids
+                _veff = self.mf.get_veff(mol=self.mol, dm=_dm)
                 self.mf.grids = _grids_orig
+                
+                ##print(">> exc1: ", _veff.__dict__['exc'])
+                ##print(">> veff", _veff.__dict__.keys())
+                #max_memory = self.mf.max_memory - lib.current_memory()[0]
+                ##print('max_mem', max_memory)
+                ##print(">> call numint.nr_vxc")
+                ##self.mf.grids = _grids_orig
                 #_lmol = self.mf.on.fod_onmol[self.s][fgrp[0]]
-                _lmol = self.mol
-                nelec, exc, vxc = numint.nr_vxc(_lmol,
-                    self.mf.grids,
-                    self.mf.xc,
-                    _dm,
-                    self.mf.FLOSIC.nspin-1,
-                    max_memory=max_memory)
-                
-                #print(">> nelec1:", nelec)
-                #print('>> exc2:', exc)
-                #print(vxc.shape)
-                
-                vj,vk = self.mf.get_jk(self.mol, _dm[0]+_dm[1], 1)
-                #ecoul = np.einsum('ij,ji', _dm[self.s][j], vj) * .5
-                
-                
-                #print('>> ecolvj', ecoul)
-                #print('>> vxc', vxc.shape)
-                #print('>> vj', vj.shape)
-                #print('>> vk', vk.shape)
-                
-                
-                vxc += vj
-                
-                ###############################
-                ###############################
-                _veff = lib.tag_array(vxc, exc=exc, vj=vj, vk=vk)
+                ##_lmol = self.mol
+                #
+                ##_lgrids.mol
+                #
+                #
+                ###ni = dft.numint.NumInt()
+                #nelec, exc, vxc = numint.nr_vxc(self.mol,
+                #    _lgrids,
+                #    self.mf.xc,
+                #    _dm,
+                #    self.s,
+                #    max_memory=1000)
+                #
+                ##print(">> nelec1:", nelec)
+                ##print('>> exc2:', exc)
+                ##print(vxc.shape)
+                #
+                #vj,vk = self.mf.get_jk(self.mol, _dm[0]+_dm[1], 1)
+                ##ecoul = np.einsum('ij,ji', _dm[self.s][j], vj) * .5
+                #
+                #
+                ##print('>> ecolvj', ecoul)
+                ##print('>> vxc', vxc.shape)
+                ##print('>> vj', vj.shape)
+                ##print('>> vk', vk.shape)
+                #
+                #
+                #vxc += vj
+                #
+                ################################
+                ################################
+                #_veff = lib.tag_array(vxc, exc=exc, vj=vj, vk=vk)
                 
                 #sys.exit()
                 
 
             # restore original grid size (if needed)
             if self.mf.on is not None:
+                #self.mf.grids = _grids_orig
                 self.mf.grids.coords = self.grids_coords_save.copy()
                 self.mf.grids.weights = self.grids_weights_save.copy()
 
