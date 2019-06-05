@@ -253,11 +253,12 @@ def mpi_worker():
             if nfod == -1: break
 
             sidx, eidx, csize = get_mpichunks(idata[0],0,comm=comm)
-            #print(">>> mpi_worker: sidx, eidx, csize", sidx, eidx, csize, flush=True)
-            #print(">>> mpi_worker: nfod, nbas", nfod, nbas, flush=True)
+            print(">>> mpi_worker: sidx, eidx, csize", sidx, eidx, csize, flush=True)
+            print(">>> mpi_worker: nfod, nbas", nfod, nbas, flush=True)
 
             # reserve memory for density matrices
             _dmtmp = np.zeros((2,nfod, nbas, nbas), dtype=np.float64)
+            print(">>> _dmtmp", _dmtmp.shape)
             comm.Bcast(_dmtmp, root=0)
             #_weights = np.zeros(nmsh, dtype='d')
             #_coords = np.zeros((nmsh,3), dtype='d')
@@ -1140,7 +1141,9 @@ class FLO(object):
                 idata[0] = len(fgrp)
                 idata[1] = nmsh
                 comm.Bcast(idata, root=0)
+                
                 _dmtmp = np.array(_dm, dtype=np.float64)
+                print(">>> _dmtmp", _dmtmp.shape, flush=True)
                 comm.Bcast(_dmtmp, root=0)
                 #_weights = np.zeros_like(self.mf.grids.weights, dtype='d')
                 #_weights[:] = self.mf.grids.weights[:]
