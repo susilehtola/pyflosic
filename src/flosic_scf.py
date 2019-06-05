@@ -307,7 +307,7 @@ class FLOSIC(uhf.UHF):
         self.preopt_fmin        = 0.005
         self.preopt_fix1s       = True
         self.opt_init_mxstep    = 0.0050
-        self.opt_mxstep         = 0.0100
+        self.opt_mxstep         = 0.0250
         self.esic_cnvg          = 0.0
         self.esic_last          = [None, None]
         self.update_vsic        = True

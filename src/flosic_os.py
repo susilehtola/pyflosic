@@ -650,7 +650,7 @@ def flosic(mol,mf,fod1,fod2,sysname=None,datatype=np.float64, print_dm_one = Fal
                             dyn = BFGS(atoms=fod,
                                 logfile='OPT_FRMORB.log',
                                 #downhill_check=True,
-                                maxstep=0.004
+                                maxstep=mf.FLOSIC.opt_init_mxstep
                             )
   
                             dyn.attach(_writexyz, interval=1)
@@ -664,7 +664,7 @@ def flosic(mol,mf,fod1,fod2,sysname=None,datatype=np.float64, print_dm_one = Fal
                         dyn = BFGS(atoms=fod,
                             logfile='OPT_FRMORB.log',
                             #downhill_check=True,
-                            maxstep=0.01
+                            maxstep=mf.FLOSIC.opt_mxstep
                         )
                         dyn.attach(_writexyz, interval=1)
                         dyn.run(fmax=_fmax,steps=299)
