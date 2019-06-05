@@ -249,6 +249,7 @@ def mpi_worker():
             #print('Got idata: ', idata)
             nfod = idata[0]
             nmsh = idata[1]
+            print('>> Got idata: ', idata)
 
             if nfod == -1: break
 
@@ -1139,11 +1140,12 @@ class FLO(object):
                 idata = np.empty(2, dtype='i')
                 # send the size of the groups to the slaves
                 idata[0] = len(fgrp)
+                print('>>> root: len(fgrp)', len(fgrp))
                 idata[1] = nmsh
                 comm.Bcast(idata, root=0)
                 
                 _dmtmp = np.array(_dm, dtype=np.float64)
-                print(">>> _dmtmp", _dmtmp.shape, flush=True)
+                print(">>> _dmtmp root", _dmtmp.shape, flush=True)
                 comm.Bcast(_dmtmp, root=0)
                 #_weights = np.zeros_like(self.mf.grids.weights, dtype='d')
                 #_weights[:] = self.mf.grids.weights[:]
