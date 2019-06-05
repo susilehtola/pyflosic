@@ -244,7 +244,7 @@ def mpi_worker():
             #sys.exit()
             #nbas = mf.mo_coeff[0].shape[0]
         elif task == 'vsic':
-            idata = np.empty(2, dtype='i')
+            idata = np.zeros(2, dtype='i')
             print('>> mpi_worker idata: ', idata)
             comm.Bcast(idata, root=0)
             #print('Got idata: ', idata)
@@ -1138,7 +1138,7 @@ class FLO(object):
                     comm.send('vsic', dest=inode, tag=11)
 
                 # send required mpi data to all nodes
-                idata = np.empty(2, dtype='i')
+                idata = np.zeros(2, dtype='i')
                 # send the size of the groups to the slaves
                 idata[0] = len(fgrp)
                 idata[1] = nmsh
