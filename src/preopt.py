@@ -245,11 +245,12 @@ def mpi_worker():
             #nbas = mf.mo_coeff[0].shape[0]
         elif task == 'vsic':
             idata = np.empty(2, dtype='i')
+            print('>> mpi_worker idata: ', idata)
             comm.Bcast(idata, root=0)
             #print('Got idata: ', idata)
             nfod = idata[0]
             nmsh = idata[1]
-            print('>> Got idata: ', idata)
+            print('>> mpi_worker Got idata: ', idata)
 
             if nfod == -1: break
 
@@ -259,7 +260,7 @@ def mpi_worker():
 
             # reserve memory for density matrices
             _dmtmp = np.zeros((2,nfod, nbas, nbas), dtype=np.float64)
-            print(">>> _dmtmp", _dmtmp.shape)
+            print(">>> mpi_worker _dmtmp", _dmtmp.shape)
             comm.Bcast(_dmtmp, root=0)
             #_weights = np.zeros(nmsh, dtype='d')
             #_coords = np.zeros((nmsh,3), dtype='d')
@@ -1140,8 +1141,8 @@ class FLO(object):
                 idata = np.empty(2, dtype='i')
                 # send the size of the groups to the slaves
                 idata[0] = len(fgrp)
-                print('>>> root: len(fgrp)', len(fgrp))
                 idata[1] = nmsh
+                print('>>> root: idata', idata)
                 comm.Bcast(idata, root=0)
                 
                 _dmtmp = np.array(_dm, dtype=np.float64)
