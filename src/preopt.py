@@ -1105,7 +1105,7 @@ class FLO(object):
             #        self.mf.on.fod_onmsh[self.s][fgrp[0]].weights[:nmsh]
             #    #self.mf.grids = self.mf.on.fod_onmsh[self.s][fgrp[0]]
             ## for debug message
-            #nmsh = self.mf.grids.weights.shape[0]
+            nmsh = _lgrids.weights.shape[0]
             
             #for j, fodid in enumerate(fgrp):
             #    aout = Atoms()
