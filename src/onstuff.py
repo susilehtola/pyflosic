@@ -482,7 +482,7 @@ class ON(object):
             dens_on = np.sum(phi_on**2*lgrid.weights)
 
             if self.mol.verbose >= 3:
-                print('  O(N)> FLO {:>3d} norm: {:10.7f} -> corrected: {:10.7f}'\
+                print('   O(N)> FLO {:>3d}: ||phi|| {:10.7f} -> corrected: {:10.7f}'\
                   .format(m, self.norm_fact[s,m], dens_on))
 
 
