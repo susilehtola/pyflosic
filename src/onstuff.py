@@ -65,7 +65,7 @@ class ON(object):
         self.mol.verbose = _verb
 
         print('O(N) initialized with grid', grid_level)
-        print('Order-N routines developed by Torsten Hahn <torstenhahn@fastmail.fm>)')
+        print('(Order-N routines developed by Torsten Hahn <torstenhahn@fastmail.fm>)')
 
         #print(self._mf.grids.coords.shape)
         #print(self._mf.grids.weights.shape)
@@ -176,8 +176,9 @@ class ON(object):
         #print len(self.fod_ao_slc[0]), len(self.fod_ao_slc)
 
         # prepare the ongrids
-        print("Generating O(N) meshes: nshell={}, grid level={}"\
-            .format(self.nshell, self.grid_level))
+        if self.mol.verbose > 3:
+            print(" Generating O(N) meshes: nshell={}, grid level={}"\
+                .format(self.nshell, self.grid_level))
         self.fod_onmsh = list()
         self.fod_onmol = list()
         for s in range(self.nspin):
@@ -190,7 +191,8 @@ class ON(object):
             self.fod_onmsh.append(lfod_onmsh)
             self.fod_onmol.append(lfod_onmol)
 
-        print("Generating O(N) FOD lists ...")
+        if self.mol.verbose > 3:
+            print(" Generating O(N) FOD lists ...")
         #print self.fod_onmsh
         #print self.onatoms
         #sys.exit()
@@ -234,7 +236,7 @@ class ON(object):
 
     def fodlist2group(self):
         """docstring for fodlist2group"""
-        print('generate fodgroup list')
+        #print('generate fodgroup list')
         # pre-generate the data structure
         self.fodgrps = list()
         for s in range(self.nspin):
@@ -275,7 +277,8 @@ class ON(object):
         """Generate a grid object that corresponds to the
             O(N) structure for the given FOD
         """
-        print(' -> building Vxc-Grid for FOD {} ...'.format(fodid), flush=True)
+        if self.mol.verbose > 3:
+            print(' -> building Vxc-Grid for FOD {} ...'.format(fodid), flush=True)
         #mol.atom_pure_symbol
         if level == None:
             level = self.grid_level
@@ -321,7 +324,8 @@ class ON(object):
             mstr += "{0} {1:0.12f} {2:0.12f} {3:0.12f};".format(
                 sym,pos[0],pos[1],pos[2])
 
-        print('     type {}, na {}:  atoms in msh {}'.format(fodtype, self.fod_atm[s][fodid][0], onatoms))
+        if self.mol.verbose > 3:
+            print('     type {}, na {}:  atoms in msh {}'.format(fodtype, self.fod_atm[s][fodid][0], onatoms))
 
 
         # build a Mole object from subsystem
@@ -351,7 +355,8 @@ class ON(object):
             ongrid.build()
             #print(">> Grid: ", ongrid.size)
         else:
-            print('     (mesh was already generated for fod {})'.format(pmshid))
+            if self.mol.verbose > 3:
+                print('     (mesh was already generated for fod {})'.format(pmshid))
         #ongrid = dft.gen_grid.Grids(onmol)
         #ongrid.prune = dft.gen_grid.nwchem_prune
         #ongrid.level = level

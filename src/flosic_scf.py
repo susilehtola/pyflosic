@@ -469,10 +469,10 @@ class FLOSIC(uhf.UHF):
         self.on = on
         self.calc_uks.on = on
         if on is not None:
-            logger.info(self,'O(N) mode enabled')
+            logger.info(self,'FLOSIC: O(N) mode enabled')
             on.print_stats()
         else:
-            logger.info(self,'O(N) mode disabled')
+            logger.info(self,'FLOSIC: O(N) mode disabled')
 
     # This routine can be called by a SIC object any time AFTER a SCF cycle has been
     # completed. It calculates and outputs the forces.

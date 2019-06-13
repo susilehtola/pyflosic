@@ -1041,61 +1041,6 @@ class FLO(object):
         self.make_flos()
         self.make_onedms()
 
-        #sys.exit()
-
-        #for m in range(self.nfod):
-        #    ao1 = numint.eval_ao(self.mol,self.mf.grids.coords)
-        #    phi = ao1.dot(self.flo[m])
-        #    dens_orig = np.sum(phi**2*self.mf.grids.weights)
-
-        #    ## get on stuff
-        #    slcs = self.mf.on.fod_ao_slc[self.s][m]
-        #    slc = list()
-        #    for sl in slcs:
-        #        slc += list(range(sl[0],sl[1]))
-
-        #    #print(slc)
-        #    # set all coefficients to zero at indices not in
-        #    # slc
-
-        #    # make copy of flo
-        #    flo_on = np.zeros_like(self.flo[m])
-        #    flo_on[:] = self.flo[m,:]
-
-        #    # zero out
-        #    for i in range(flo_on.shape[0]):
-        #        if i in slc: continue
-        #        flo_on[i] = 0.0
-
-        #    no = np.linalg.norm(self.flo[m])
-        #    nr = np.linalg.norm(flo_on)
-        #    nd = np.abs(no - nr)
-
-
-        #    ## renormalization of flo_on
-        #    lgrid = self.mf.on.fod_onmsh[self.s][m]
-        #    ao_on = numint.eval_ao(self.mol,lgrid.coords)
-        #    phi_on = ao_on.dot(flo_on)
-        #    dens_on = np.sum(phi_on**2*lgrid.weights)
-
-        #    flo_on[:] = flo_on[:] / np.sqrt(dens_on)
-
-
-        #    phi_on = ao1.dot(flo_on)
-        #    dens_on = np.sum(phi_on**2*self.mf.grids.weights)
-
-
-        #    print('{:>3d}: ndiff: {:9.6f}  dens:  {:9.6f}'.format(m, nd, #dens_orig-dens_on))
-
-        #    #sys.exit()
-
-
-        #    #print('FLO-density {}: {:9.6f}'.format(m,dens_orig))
-
-        #print(">>> debug done")
-        #sys.exit(-1)
-
-
         # check for initialization
         if self.vsic_init == False:
             uall = True
@@ -1122,20 +1067,6 @@ class FLO(object):
             fodgrps = [list(upd_ids)]
         else:
             fodgrps = self.mf.on.fodgrps[self.s]
-
-        #print(fodgrps)
-
-        # to do, purge fodgrps for fodids that are not required to recalc
-        ##skiptable = list()
-        ##for j in enumerate(fodgrps):
-        ##    skiptable.append([])
-        ##for ifgrp, fgrp in enumerate(fodgrps):
-        ##    for j, fodid in enumerate(fgrp):
-        ##        #print('fgrp', fgrp)
-        ##        #print('upids', upd_ids)
-        ##        if fodid not in upd_ids: skiptable[ifgrp].append(fodid)
-        #print(skiptable)
-        #sys.exit()
 
         # loop over the group of fod's and calculate
         # veff for each group (thah has the same mesh) in a single call
