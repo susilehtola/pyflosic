@@ -57,12 +57,12 @@ class ON(object):
         #print(self.mol)
 
         _verb = self.mol.verbose
-        self.mol.verbose = 0
+        ##self.mol.verbose = 0
         #self._mf = dft.UKS(mol)
         #self._mf.grids.level = grid_level
         #self._mf.max_cycle = 0
         #self._mf.kernel()
-        self.mol.verbose = _verb
+        ##self.mol.verbose = _verb
 
         print('O(N) initialized with grid', grid_level)
         print('(Order-N routines developed by Torsten Hahn <torstenhahn@fastmail.fm>)')
@@ -481,8 +481,8 @@ class ON(object):
             phi_on = ao_on.dot(flo_on[m])
             dens_on = np.sum(phi_on**2*lgrid.weights)
 
-            if self.mol.verbose > 3:
-                print('FLO {:>3d} norm: {:10.7f}, corrected: {:10.7f}'\
+            if self.mol.verbose >= 3:
+                print('  O(N)> FLO {:>3d} norm: {:10.7f} -> corrected: {:10.7f}'\
                   .format(m, self.norm_fact[s,m], dens_on))
 
 
