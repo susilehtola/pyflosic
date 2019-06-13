@@ -276,10 +276,10 @@ def mpi_worker():
             #    'xc'        : self.mf.xc,
             #    'grid_level': _lgrids.level
             #}
-            
+
             _info = None
             _info = comm.bcast(_info, root=0)
-            
+
             _lmol = gto.M(atom=_info['atom'],
                 basis=_info['basis'],
                 spin=_info['spin'],
@@ -287,11 +287,11 @@ def mpi_worker():
                 verbose=0,
                 max_memory=_info['max_memory']
             )
-            
+
             _lgrids = dft.gen_grid.Grids(_lmol)
             _lgrids.level = _info['grid_level']
             _lgrids.build()
-            
+
             mf.grids = _lgrids
 
             #mf.grids.coords = _coords
@@ -672,6 +672,7 @@ class FLO(object):
         self.make_flos()
 
         self.onedm = np.zeros((self.nfod,self.nks,self.nks), dtype=np.float64)
+        self.onedm_on = np.zeros_like(self.onedm)
         self.vsic = np.zeros((self.nfod,self.nks,self.nks), dtype=np.float64)
         self.vsic_init = False
         self.energies = np.zeros((self.nfod,3), dtype=np.float64)
@@ -718,6 +719,12 @@ class FLO(object):
         q_fo,v_fo = np.linalg.eigh(ovrlp_fo[0:nfod,0:nfod])
         T_lo[0:nfod,0:nfod] = v_fo
         Q_lo[0:nfod] = q_fo
+
+        bad_qs = np.where(Q_lo[0:nfod] < 0.0)[0]
+        assert bad_qs.shape[0] == 0,\
+            'Löwdin eigenvalues must be positive:\n{}'.format(Q_lo)
+
+        #print('>>>')
         #print(np.array_str(Q_lo, precision=4,max_line_width=240, suppress_small=False))
         #sys.exit()
         one_div_d = (1.0 / np.sqrt(q_fo)) * np.eye(nfod)
@@ -737,7 +744,7 @@ class FLO(object):
         # copy matmul result to class storage
         # this copies only the flos
         self.flo[:self.nfod,:] = flo[:self.nfod,:]
-        
+
 
         # the rest of the array is filled with the
         # original KS orbitals
@@ -963,26 +970,57 @@ class FLO(object):
         mol = self.mol
         #self.onedms = list()
         for j in range(self.nfod):
-            occup_work =  np.array(mf.mo_occ).copy()
-            for i in range(0,nks):
-                if i == j:
-                    occup_work[0][i] = 0.
-                    occup_work[1][i] = 0.
-                    occup_work[self.s][i] = 1.
-                else:
-                    occup_work[0][i] = 0.
-                    occup_work[1][i] = 0.
-            odm = dynamic_rdmc(self.flo,occup_work[self.s])
-            #print(odm.shape)
-            #print(type(odm))
-            #sys.exit()
+            occup_work = np.zeros_like(mf.mo_occ)
+            occup_work[self.s][j] = 1.0
+            #occup_work =  np.array(mf.mo_occ).copy()
+            #for i in range(0,nks):
+            #    if i == j:
+            #        occup_work[0][i] = 0.
+            #        occup_work[1][i] = 0.
+            #        occup_work[self.s][i] = 1.
+            #    else:
+            #        occup_work[0][i] = 0.
+            #        occup_work[1][i] = 0.
+            odm = dynamic_rdmc(self.flo, occup_work[self.s])
+
+
             #self.onedms.append(odm)
-            self.onedm[j,:,:] = odm[:,:].copy()
+            self.onedm[j,:,:] = odm[:,:]
 
 
-        #print(nks)
-        #print(len(self.onedms))
+        # if O(N) mode is enabled, we also generate the
+        # O(N) dm's and flo coefficients
+        if mf.on is None:
+            return
+
+        if self.mol.verbose > 3:
+            print('O(N)> generate localized orbitals and density matrices')
+
+        self.flo_on = mf.on.on_coeff(self.s, self.flo)
+        flo_on = self.flo_on
+
+        for j in range(self.nfod):
+            occup_work = np.zeros_like(mf.mo_occ)
+            occup_work[self.s][j] = 1.0
+            #print('jj', j)
+            #print(np.where(np.abs(flo_on[j]) < 1e-12))
+
+            odm = dynamic_rdmc(flo_on, occup_work[self.s])
+
+            #self.onedms.append(odm)
+            self.onedm_on[j,:,:] = odm[:,:]
+
+            dm_diff = np.linalg.norm(self.onedm_on[j] - self.onedm[j])
+
+            #print(np.array_str(odm, precision=4, suppress_small=False, max_line_width=240))
+            #print(np.where(np.abs(odm) < 1e-12))
+
+            #print('dm_diff {} : {}'.format(j, dm_diff))
+
+
         #sys.exit()
+
+
 
     def update_vsic(self, fod_id=None, npos=None, uall=False):
         """update sic potentials if needed"""
@@ -1002,63 +1040,61 @@ class FLO(object):
         # rebuild orbitals and density matrices
         self.make_flos()
         self.make_onedms()
-        
-        
 
-        for m in range(self.nfod):
-            ao1 = numint.eval_ao(self.mol,self.mf.grids.coords)
-            phi = ao1.dot(self.flo[m])
-            dens_orig = np.sum(phi**2*self.mf.grids.weights)
-            
-            ## get on stuff
-            slcs = self.mf.on.fod_ao_slc[self.s][m]
-            slc = list()
-            for sl in slcs:
-                slc += list(range(sl[0],sl[1]))
-            
-            #print(slc)
-            # set all coefficients to zero at indices not in
-            # slc
-            
-            # make copy of flo
-            flo_on = np.zeros_like(self.flo[m])
-            flo_on[:] = self.flo[m,:]
-            
-            # zero out
-            for i in range(flo_on.shape[0]):
-                if i in slc: continue
-                flo_on[i] = 0.0
-            
-            no = np.linalg.norm(self.flo[m])
-            nr = np.linalg.norm(flo_on)
-            nd = np.abs(no - nr)
-            
-            
-            ## renormalization of flo_on
-            lgrid = self.mf.on.fod_onmsh[self.s][m]
-            ao_on = numint.eval_ao(self.mol,lgrid.coords)
-            phi_on = ao_on.dot(flo_on)
-            dens_on = np.sum(phi_on**2*lgrid.weights)
-            
-            flo_on[:] = flo_on[:] / np.sqrt(dens_on)
-            
-            
-            phi_on = ao1.dot(flo_on)
-            dens_on = np.sum(phi_on**2*self.mf.grids.weights)
-            
-            
-            print('{:>3d}: ndiff: {:9.6f}  dens:  {:9.6f}'.format(m, nd, dens_orig-dens_on))
-            
-            #sys.exit()
-            
-            
-            #print('FLO-density {}: {:9.6f}'.format(m,dens_orig))
-        
-        print(">>> debug done")
-        sys.exit(-1)
-        
-        
-        
+        #sys.exit()
+
+        #for m in range(self.nfod):
+        #    ao1 = numint.eval_ao(self.mol,self.mf.grids.coords)
+        #    phi = ao1.dot(self.flo[m])
+        #    dens_orig = np.sum(phi**2*self.mf.grids.weights)
+
+        #    ## get on stuff
+        #    slcs = self.mf.on.fod_ao_slc[self.s][m]
+        #    slc = list()
+        #    for sl in slcs:
+        #        slc += list(range(sl[0],sl[1]))
+
+        #    #print(slc)
+        #    # set all coefficients to zero at indices not in
+        #    # slc
+
+        #    # make copy of flo
+        #    flo_on = np.zeros_like(self.flo[m])
+        #    flo_on[:] = self.flo[m,:]
+
+        #    # zero out
+        #    for i in range(flo_on.shape[0]):
+        #        if i in slc: continue
+        #        flo_on[i] = 0.0
+
+        #    no = np.linalg.norm(self.flo[m])
+        #    nr = np.linalg.norm(flo_on)
+        #    nd = np.abs(no - nr)
+
+
+        #    ## renormalization of flo_on
+        #    lgrid = self.mf.on.fod_onmsh[self.s][m]
+        #    ao_on = numint.eval_ao(self.mol,lgrid.coords)
+        #    phi_on = ao_on.dot(flo_on)
+        #    dens_on = np.sum(phi_on**2*lgrid.weights)
+
+        #    flo_on[:] = flo_on[:] / np.sqrt(dens_on)
+
+
+        #    phi_on = ao1.dot(flo_on)
+        #    dens_on = np.sum(phi_on**2*self.mf.grids.weights)
+
+
+        #    print('{:>3d}: ndiff: {:9.6f}  dens:  {:9.6f}'.format(m, nd, #dens_orig-dens_on))
+
+        #    #sys.exit()
+
+
+        #    #print('FLO-density {}: {:9.6f}'.format(m,dens_orig))
+
+        #print(">>> debug done")
+        #sys.exit(-1)
+
 
         # check for initialization
         if self.vsic_init == False:
@@ -1122,15 +1158,16 @@ class FLO(object):
             for j, fodid in enumerate(fgrp):
                 ##if fodid in skiptable[ifgrp]: continue
                 #print('j,fodid', j,fodid)
-                odm = self.onedm[fodid][:,:].copy()
-                #dma_orig[j,:,:] = 
+                odm = self.onedm[fodid][:,:]
+                #dma_orig[j,:,:] =
                 if self.mf.on is not None:
                     if self.s == 0:
                         dma_orig[j,:,:] = odm[:,:].copy()
                     else:
                         dmb_orig[j,:,:] = odm[:,:].copy()
-                    
-                    _odm = self.mf.on.get_on_dm(self.s, fodid, odm)
+
+                    #_odm = self.mf.on.get_on_dm(self.s, fodid, odm)
+                    _odm = self.onedm_on[fodid][:,:]
                     if self.s == 0:
                         dma[j,:,:] = _odm[:,:].copy()
                     else:
@@ -1144,11 +1181,11 @@ class FLO(object):
                 #dm[j,:,:] = odm[:,:]
             _dm = [dma,dmb]
             _dm_orig = [dma_orig, dmb_orig]
-            
+
             #print(np.array(_dm).shape)
-            
+
             _grids_orig = copy(self.mf.grids)
-            
+
             #print('fgrp', fgrp)
             # prepare grid for veff
             _lgrids = self.mf.grids
@@ -1156,11 +1193,11 @@ class FLO(object):
             if self.mf.on is not None:
                 _lgrids = self.mf.on.fod_onmsh[self.s][fgrp[0]]
                 _lmol = self.mf.on.fod_onmol[self.s][fgrp[0]]
-                
+
             #    self.mf.grids.coords[:,0:3] = 0.0
             #    self.mf.grids.weights[:] = 0.0
             #    nmsh = self.mf.on.fod_onmsh[self.s][fgrp[0]].weights.shape[0]
-            #    
+            #
             #    self.mf.grids.coords[:nmsh,0:3] = \
             #        self.mf.on.fod_onmsh[self.s][fgrp[0]].coords[:nmsh,0:3]
             #    self.mf.grids.weights[:nmsh] = \
@@ -1168,7 +1205,7 @@ class FLO(object):
             #    #self.mf.grids = self.mf.on.fod_onmsh[self.s][fgrp[0]]
             ## for debug message
             nmsh = _lgrids.weights.shape[0]
-            
+
             #for j, fodid in enumerate(fgrp):
             #    aout = Atoms()
             #    ofn = 'out_{}.xyz'.format(fodid)
@@ -1182,10 +1219,10 @@ class FLO(object):
             #                position=_lmol.atom_coord(k)*units.Bohr,
             #            )
             #        )
-            #    
+            #
             #    io.write(ofn, aout, format='xyz')
             #    #tools.cubegen.density(self.mol, ofn, _ldm)
-            
+
             # check if we want to use mpi
             if self.use_mpi and len(fgrp) > 1:
                 comm = MPI.COMM_WORLD
@@ -1204,7 +1241,7 @@ class FLO(object):
                 idata[1] = nmsh
                 print('>>> root: idata', idata)
                 comm.Bcast(idata, root=0)
-                
+
                 _dmtmp = np.array(_dm, dtype=np.float64)
                 print(">>> _dmtmp root", _dmtmp.shape, flush=True)
                 comm.Bcast(_dmtmp, root=0)
@@ -1214,8 +1251,8 @@ class FLO(object):
                 #_coords = np.zeros_like(self.mf.grids.coords, dtype='d')
                 #_coords[:,:] = self.mf.grids.coords[:,:]
                 #comm.Bcast(self.mf.grids.coords, root=0)
-                
-                
+
+
                 info = {
                     'atom'      : _lmol.atom,
                     'basis'     : _lmol.basis,
@@ -1225,7 +1262,7 @@ class FLO(object):
                     'xc'        : self.mf.xc,
                     'grid_level': _lgrids.level
                 }
-                
+
                 comm.bcast(info, root=0)
 
                 sidx, eidx, csize = get_mpichunks(len(fgrp),0,comm=comm)
@@ -1275,7 +1312,7 @@ class FLO(object):
                 self.mf.grids = _lgrids
                 _veff = self.mf.get_veff(mol=self.mol, dm=_dm)
                 self.mf.grids = _grids_orig
-                
+
                 ##print(">> exc1: ", _veff.__dict__['exc'])
                 ##print(">> veff", _veff.__dict__.keys())
                 #max_memory = self.mf.max_memory - lib.current_memory()[0]
@@ -1315,9 +1352,9 @@ class FLO(object):
                 ################################
                 ################################
                 #_veff = lib.tag_array(vxc, exc=exc, vj=vj, vk=vk)
-                
+
                 #sys.exit()
-                
+
 
             # restore original grid size (if needed)
             if self.mf.on is not None:
