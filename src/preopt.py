@@ -244,6 +244,7 @@ def mpi_worker():
             #sys.exit()
             #nbas = mf.mo_coeff[0].shape[0]
         elif task == 'vsic':
+            comm.Barrier()
             idata = np.zeros(2, dtype='i')
             print('>> mpi_worker idata: ', idata)
             comm.Bcast(idata, root=0)
@@ -727,7 +728,7 @@ class FLO(object):
         # rotate FOs into FLOs
         # in the result, first index is nfod (!)
         # that is different from the original
-        # Lenz/Sebastian code, but more effective !
+        # Lenz/Sebastian code, but more efficient !
         flo = np.matmul(trafo,fo.T)
 
         # create storage for flo's
@@ -736,6 +737,7 @@ class FLO(object):
         # copy matmul result to class storage
         # this copies only the flos
         self.flo[:self.nfod,:] = flo[:self.nfod,:]
+        
 
         # the rest of the array is filled with the
         # original KS orbitals
@@ -1000,6 +1002,63 @@ class FLO(object):
         # rebuild orbitals and density matrices
         self.make_flos()
         self.make_onedms()
+        
+        
+
+        for m in range(self.nfod):
+            ao1 = numint.eval_ao(self.mol,self.mf.grids.coords)
+            phi = ao1.dot(self.flo[m])
+            dens_orig = np.sum(phi**2*self.mf.grids.weights)
+            
+            ## get on stuff
+            slcs = self.mf.on.fod_ao_slc[self.s][m]
+            slc = list()
+            for sl in slcs:
+                slc += list(range(sl[0],sl[1]))
+            
+            #print(slc)
+            # set all coefficients to zero at indices not in
+            # slc
+            
+            # make copy of flo
+            flo_on = np.zeros_like(self.flo[m])
+            flo_on[:] = self.flo[m,:]
+            
+            # zero out
+            for i in range(flo_on.shape[0]):
+                if i in slc: continue
+                flo_on[i] = 0.0
+            
+            no = np.linalg.norm(self.flo[m])
+            nr = np.linalg.norm(flo_on)
+            nd = np.abs(no - nr)
+            
+            
+            ## renormalization of flo_on
+            lgrid = self.mf.on.fod_onmsh[self.s][m]
+            ao_on = numint.eval_ao(self.mol,lgrid.coords)
+            phi_on = ao_on.dot(flo_on)
+            dens_on = np.sum(phi_on**2*lgrid.weights)
+            
+            flo_on[:] = flo_on[:] / np.sqrt(dens_on)
+            
+            
+            phi_on = ao1.dot(flo_on)
+            dens_on = np.sum(phi_on**2*self.mf.grids.weights)
+            
+            
+            print('{:>3d}: ndiff: {:9.6f}  dens:  {:9.6f}'.format(m, nd, dens_orig-dens_on))
+            
+            #sys.exit()
+            
+            
+            #print('FLO-density {}: {:9.6f}'.format(m,dens_orig))
+        
+        print(">>> debug done")
+        sys.exit(-1)
+        
+        
+        
 
         # check for initialization
         if self.vsic_init == False:
@@ -1137,6 +1196,7 @@ class FLO(object):
                 for inode in range(1,wsize):
                     comm.send('vsic', dest=inode, tag=11)
 
+                comm.Barrier()
                 # send required mpi data to all nodes
                 idata = np.zeros(2, dtype='i')
                 # send the size of the groups to the slaves

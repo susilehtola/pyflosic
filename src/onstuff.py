@@ -444,11 +444,8 @@ class ON(object):
                 #print "set dm zero", i, j
                 dmout[i,j] = 0.0
         
-        nchk = np.sum(dmout)
-        if np.isnan(nchk):
-            print('Got it')
-            sys.exit()
-
+        assert any(np.isnan(dmout)) != True, 'NaN detected in dm-matrix'
+        
         return dmout
         
     def get_neighbors(self, atmid, nshell=1):
